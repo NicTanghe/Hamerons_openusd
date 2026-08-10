@@ -96,6 +96,27 @@ mod tests {
     }
 
     #[test]
+    fn untyped_source_valid() -> Result<()> {
+        let stage = usd::Stage::builder().in_memory("anon.usda")?;
+        let source = stage.override_prim("/Mat/Source")?;
+        let source_output = source.create_attribute("outputs:result", "float")?;
+        let sink = Shader::define(&stage, "/Mat/Sink")?;
+        sink.create_input("value", "float")?
+            .set_connections([source_output.path().clone()])?;
+
+        let connected = sink.input("value").connected_sources()?;
+        assert!(connected.invalid_source_paths().is_empty());
+        assert_eq!(connected.sources().len(), 1);
+        assert_eq!(connected.sources()[0].source_prim().path(), source.path());
+
+        let producing = sink.input("value").value_producing_attributes(false)?;
+        assert_eq!(producing.len(), 1);
+        assert_eq!(producing[0].path(), source_output.path());
+        assert_eq!(producing[0].attribute_type(), AttributeType::Output);
+        Ok(())
+    }
+
+    #[test]
     fn nested_graph_resolution() -> Result<()> {
         let stage = usd::Stage::builder().in_memory("anon.usda")?;
         let source = Shader::define(&stage, "/Mat/Source")?;
@@ -173,11 +194,11 @@ mod tests {
         let valid_output = valid.create_output("result", "float")?;
         let missing_output = Shader::define(&stage, "/Mat/MissingOutput")?;
         let plain = stage.define_prim("/Mat/Plain")?.set_type_name("Scope")?;
-        plain.create_attribute("outputs:result", "float")?;
+        plain.create_attribute("result", "float")?;
         let sink = Shader::define(&stage, "/Mat/Sink")?;
         sink.create_input("value", "float")?.set_connections([
             sdf::path("/Missing.outputs:result")?,
-            sdf::path("/Mat/Plain.outputs:result")?,
+            sdf::path("/Mat/Plain.result")?,
             missing_output.path().append_property("outputs:result")?,
             valid_output.path().clone(),
         ])?;
@@ -190,7 +211,7 @@ mod tests {
             invalid,
             vec![
                 "/Missing.outputs:result",
-                "/Mat/Plain.outputs:result",
+                "/Mat/Plain.result",
                 "/Mat/MissingOutput.outputs:result"
             ]
         );

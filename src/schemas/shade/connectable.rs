@@ -5,7 +5,7 @@ use anyhow::Result;
 use crate::{sdf, tf, usd};
 
 use super::tokens::{NS_INPUTS, NS_OUTPUTS};
-use super::{Input, Material, NodeGraph, Output, Shader};
+use super::{Input, Material, NodeGraph, Output};
 
 /// Whether a shading attribute is an `inputs:` or `outputs:` property.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -69,8 +69,9 @@ impl ShadingAttribute {
 /// Information about one valid upstream UsdShade connection source.
 ///
 /// This is the Rust counterpart of `UsdShadeConnectionSourceInfo`. The source
-/// path is valid only when its owning prim is a supported connectable schema
-/// and the source attribute exists.
+/// path is valid when its owning prim and namespaced source attribute exist.
+/// The prim may be an untyped `over`, as OpenUSD permits for connection
+/// targets.
 #[derive(Clone)]
 pub struct ConnectionSource {
     source_prim: usd::Prim,
@@ -133,7 +134,7 @@ impl ConnectionSource {
 ///
 /// Both collections preserve the order of the composed connection paths. A
 /// path is invalid when it does not identify an existing input or output on a
-/// supported connectable prim.
+/// defined prim.
 #[derive(Clone, Default)]
 pub struct ConnectedSources {
     sources: Vec<ConnectionSource>,
@@ -173,7 +174,7 @@ pub(super) fn connected_sources(attribute: &usd::Attribute) -> Result<ConnectedS
             result.invalid_source_paths.push(source_path);
             continue;
         };
-        let Some(source_is_container) = connectable_container(attribute.stage(), &source_prim_path)? else {
+        let Some((source_prim, source_is_container)) = source_prim(attribute.stage(), &source_prim_path)? else {
             result.invalid_source_paths.push(source_path);
             continue;
         };
@@ -186,7 +187,7 @@ pub(super) fn connected_sources(attribute: &usd::Attribute) -> Result<ConnectedS
         let source_name = tf::Token::from(source_name);
 
         result.sources.push(ConnectionSource {
-            source_prim: attribute.stage().prim(source_prim_path),
+            source_prim,
             source_path,
             source_name,
             source_type,
@@ -232,12 +233,11 @@ pub(super) fn input_path(prim: &sdf::Path, base: &str) -> Result<sdf::Path> {
     prim.append_property(input_name(base))
 }
 
-fn connectable_container(stage: &usd::Stage, path: &sdf::Path) -> Result<Option<bool>> {
-    if Shader::get(stage, path.clone())?.is_some() {
-        return Ok(Some(false));
+fn source_prim(stage: &usd::Stage, path: &sdf::Path) -> Result<Option<(usd::Prim, bool)>> {
+    let prim = stage.prim(path.clone());
+    if !prim.is_valid()? {
+        return Ok(None);
     }
-    if NodeGraph::get(stage, path.clone())?.is_some() || Material::get(stage, path.clone())?.is_some() {
-        return Ok(Some(true));
-    }
-    Ok(None)
+    let is_container = NodeGraph::get(stage, path.clone())?.is_some() || Material::get(stage, path.clone())?.is_some();
+    Ok(Some((prim, is_container)))
 }
