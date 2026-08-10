@@ -5,7 +5,6 @@ use anyhow::Result;
 use crate::usd::SchemaBase;
 
 use super::connectable::{input_name, output_name};
-use super::tokens::{NS_INPUTS, NS_OUTPUTS};
 use super::{Input, Output};
 
 /// The `inputs:` and `outputs:` surface shared by Shader, NodeGraph, and
@@ -29,10 +28,9 @@ pub trait Connectable: SchemaBase {
     fn inputs(&self) -> Result<Vec<Input>> {
         Ok(self
             .prim()
-            .authored_property_names()?
+            .authored_attributes()?
             .into_iter()
-            .filter(|name| name.starts_with(NS_INPUTS))
-            .map(|name| Input::new(self.prim().attribute(name)))
+            .filter_map(Input::from_attribute)
             .collect())
     }
 
@@ -54,10 +52,9 @@ pub trait Connectable: SchemaBase {
     fn outputs(&self) -> Result<Vec<Output>> {
         Ok(self
             .prim()
-            .authored_property_names()?
+            .authored_attributes()?
             .into_iter()
-            .filter(|name| name.starts_with(NS_OUTPUTS))
-            .map(|name| Output::new(self.prim().attribute(name)))
+            .filter_map(Output::from_attribute)
             .collect())
     }
 }

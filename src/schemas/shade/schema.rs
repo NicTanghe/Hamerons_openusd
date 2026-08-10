@@ -300,6 +300,25 @@ mod tests {
     }
 
     #[test]
+    fn lists_skip_relationships() -> Result<()> {
+        let stage = Stage::builder().in_memory("anon.usda")?;
+        let shader = Shader::define(&stage, "/Mat/Surface")?;
+        shader.create_input("roughness", "float")?;
+        shader.create_output("surface", "token")?;
+        shader.create_relationship("inputs:binding")?;
+        shader.create_relationship("outputs:binding")?;
+
+        let inputs = shader.inputs()?;
+        assert_eq!(inputs.len(), 1);
+        assert_eq!(inputs[0].base_name(), "roughness");
+
+        let outputs = shader.outputs()?;
+        assert_eq!(outputs.len(), 1);
+        assert_eq!(outputs[0].base_name(), "surface");
+        Ok(())
+    }
+
+    #[test]
     fn shader_source_asset() -> Result<()> {
         let stage = Stage::builder().in_memory("anon.usda")?;
         let shader = Shader::define(&stage, "/Mat/MdlShader")?;
