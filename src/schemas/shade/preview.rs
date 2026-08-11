@@ -81,27 +81,32 @@ pub fn read_preview_surface(stage: &Stage, material: &Path) -> Result<Option<Rea
     let Some(material) = Material::get(stage, material.clone())? else {
         return Ok(None);
     };
-    let Some(shader) = material.compute_surface_source()? else {
+    let Some(terminal) = material.compute_surface_source(&[])? else {
         return Ok(None);
     };
+    let shader = terminal
+        .sources()
+        .first()
+        .expect("a resolved terminal always has a source")
+        .shader();
     if shader.id()?.as_deref() != Some(SHADER_ID_PREVIEW_SURFACE) {
         return Ok(None);
     }
 
     Ok(Some(ReadPreviewSurface {
         shader: shader.path().as_str().to_string(),
-        diffuse_color: read_color_channel(&shader, PS_DIFFUSE_COLOR)?,
-        emissive_color: read_color_channel(&shader, PS_EMISSIVE_COLOR)?,
-        specular_color: read_color_channel(&shader, PS_SPECULAR_COLOR)?,
-        metallic: read_scalar_channel(&shader, PS_METALLIC)?,
-        roughness: read_scalar_channel(&shader, PS_ROUGHNESS)?,
-        clearcoat: read_scalar_channel(&shader, PS_CLEARCOAT)?,
-        clearcoat_roughness: read_scalar_channel(&shader, PS_CLEARCOAT_ROUGHNESS)?,
-        opacity: read_scalar_channel(&shader, PS_OPACITY)?,
-        opacity_threshold: read_scalar_channel(&shader, PS_OPACITY_THRESHOLD)?,
-        ior: read_scalar_channel(&shader, PS_IOR)?,
-        normal: read_color_channel(&shader, PS_NORMAL)?,
-        occlusion: read_scalar_channel(&shader, PS_OCCLUSION)?,
+        diffuse_color: read_color_channel(shader, PS_DIFFUSE_COLOR)?,
+        emissive_color: read_color_channel(shader, PS_EMISSIVE_COLOR)?,
+        specular_color: read_color_channel(shader, PS_SPECULAR_COLOR)?,
+        metallic: read_scalar_channel(shader, PS_METALLIC)?,
+        roughness: read_scalar_channel(shader, PS_ROUGHNESS)?,
+        clearcoat: read_scalar_channel(shader, PS_CLEARCOAT)?,
+        clearcoat_roughness: read_scalar_channel(shader, PS_CLEARCOAT_ROUGHNESS)?,
+        opacity: read_scalar_channel(shader, PS_OPACITY)?,
+        opacity_threshold: read_scalar_channel(shader, PS_OPACITY_THRESHOLD)?,
+        ior: read_scalar_channel(shader, PS_IOR)?,
+        normal: read_color_channel(shader, PS_NORMAL)?,
+        occlusion: read_scalar_channel(shader, PS_OCCLUSION)?,
     }))
 }
 
